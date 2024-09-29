@@ -1,0 +1,44 @@
+name: Terraform and Deployment
+on:
+    push:
+        branches:
+            - master
+    pull_request:
+
+permissions:
+    id-token: write
+    contents: read
+
+jobs:
+    terraform:
+        name: 'Terraform'
+        runs-on: ubuntu-latest
+
+        steps:
+          - name: 'Checkout'
+            uses: actions/checkout@v2
+
+          - name: Configure AWS Credentials
+            uses: aws-actions/configure-aws-credentials@v4
+            with:
+              role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+              aws-region: us-east-1
+              role-session-name: GitHubActions-${{ github.run_id }}
+              role-duration-seconds: 3600
+              audience: sts.amazonaws.com
+
+          - name: Setup Terraform
+            uses: hashicorp/setup-terraform@v3
+            with:
+                terraform_wrapper: false
+
+          - name: Terraform Init
+            run: terraform init
+
+          - name: Terraform Plan
+            run: terraform plan -no-color
+            continue-on-error: true
+            
+          - name: Terraform Apply
+            if: github.ref == 'refs/heads/master' && github
+            run: terraform apply -auto-approve
